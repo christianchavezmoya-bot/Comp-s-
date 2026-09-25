@@ -1,0 +1,34 @@
+node_modules/
+.pnpm-store/
+dist/
+.svelte-kit/
+build/
+.next/
+.cache/
+*.log
+*.tsbuildinfo
+.env
+.env.*
+!.env.example
+.DS_Store
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# local app storage (audio + DBs)
+apps/api/storage/
+apps/api/*.db
+apps/api/*.db-journal
+
+# ML model weights
+models/
+*.onnx
+*.pt
+*.pth
+*.bin
+
+# uploaded songs (we keep originals out of git)
+golden/sources/
+!golden/sources/.gitkeep

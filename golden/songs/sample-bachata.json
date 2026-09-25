@@ -1,0 +1,63 @@
+{
+  "$schema": "https://compas.dev/schemas/golden-v1.json",
+  "song_id": "sample-bachata-001",
+  "intake": {
+    "annotator_id": "demo",
+    "annotated_at": "2026-09-25T00:00:00Z",
+    "duration_sec": 195.0,
+    "sample_rate": 44100,
+    "channels": 2,
+    "source_format": "flac",
+    "source_sha256": "demo"
+  },
+  "metadata": {
+    "title": "Sample Bachata",
+    "artist": "Demo Artist",
+    "album": null,
+    "year": 2020,
+    "genre": "bachata",
+    "subgenre": "bachata_moderna",
+    "language": "es"
+  },
+  "global": {
+    "bpm": 128.0,
+    "bpm_confidence": "high",
+    "bpm_alt": [],
+    "key": "F minor",
+    "time_signature": "4/4",
+    "first_downbeat_sec": 0.0,
+    "first_8count_start_sec": 0.0,
+    "feel": "double_time",
+    "clave_direction": null
+  },
+  "downbeats": [0.0, 1.875, 3.75, 5.625, 7.5],
+  "beats": [0.0, 0.469, 0.938, 1.406, 1.875],
+  "sections": [
+    {"start_sec": 0.0, "end_sec": 7.5, "type": "intro", "confidence": "high"},
+    {"start_sec": 7.5, "end_sec": 30.0, "type": "verso", "confidence": "high"},
+    {"start_sec": 30.0, "end_sec": 45.0, "type": "coro", "confidence": "high"},
+    {"start_sec": 45.0, "end_sec": 49.0, "type": "mambo", "confidence": "high"},
+    {"start_sec": 49.0, "end_sec": 90.0, "type": "coro", "confidence": "high"},
+    {"start_sec": 90.0, "end_sec": 105.0, "type": "soneo", "confidence": "high"},
+    {"start_sec": 105.0, "end_sec": 110.0, "type": "breakdown", "confidence": "high"},
+    {"start_sec": 110.0, "end_sec": 188.0, "type": "coro", "confidence": "high"},
+    {"start_sec": 188.0, "end_sec": 195.0, "type": "outro", "confidence": "high"}
+  ],
+  "stems_present": {
+    "vocals_lead": true, "vocals_back": true, "requinto": true, "segunda": true,
+    "bass": true, "bongo": true, "guira": true, "tambora": false, "clave": false,
+    "palmas": false, "synth": false, "horns": false, "piano": false,
+    "congas": false, "timbales": false, "cowbell": false, "maracas": false, "guiro": false
+  },
+  "lyrics": {
+    "language": "es",
+    "segments": [
+      {"start_sec": 8.0, "end_sec": 10.5, "text": "Son las cinco de la mañana", "vocal_type": "lead"},
+      {"start_sec": 30.0, "end_sec": 33.0, "text": "oh-oh-oh", "vocal_type": "backing"}
+    ]
+  },
+  "hits": [
+    {"time_sec": 0.0, "strength": 0.95, "type": "downbeat"},
+    {"time_sec": 45.0, "strength": 0.85, "type": "accent"}
+  ]
+}

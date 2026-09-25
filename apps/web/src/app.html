@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<link rel="icon" href="%sveltekit.assets%/favicon.svg" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<meta name="theme-color" content="#0a0a0a" />
+		<title>Compás</title>
+		<style>
+			:root {
+				color-scheme: dark;
+				--bg: #0a0a0a;
+				--fg: #f0f0f0;
+				--muted: #888;
+				--accent: #4f9eff;
+				--requinto: #2dd4bf;
+				--segunda: #38bdf8;
+				--bass: #fb923c;
+				--bongo: #a3e635;
+				--guira: #facc15;
+				--clave: #a78bfa;
+				--palmas: #94a3b8;
+				--vocals: #ec4899;
+			}
+			* { box-sizing: border-box; }
+			html, body { margin: 0; padding: 0; background: var(--bg); color: var(--fg); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, sans-serif; }
+		</style>
+		%sveltekit.head%
+	</head>
+	<body data-sveltekit-preload-data="hover">
+		<div style="display: contents">%sveltekit.body%</div>
+	</body>
+</html>

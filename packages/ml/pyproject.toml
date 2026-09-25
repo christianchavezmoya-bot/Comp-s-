@@ -1,0 +1,31 @@
+[project]
+name = "compas-ml"
+version = "0.1.0"
+description = "Compás ML package — Demucs, Roformer, Beat-Transformer, Whisper wrappers"
+requires-python = ">=3.11"
+dependencies = [
+    "numpy>=2.1",
+    "scipy>=1.14",
+    "librosa>=0.10",
+    "soundfile>=0.12",
+    "torch>=2.5",
+    "torchaudio>=2.5",
+    "demucs>=4.0.1",
+    # "mel-band-roformer @ git+https://github.com/KimberleyJensen/Mel-Band-Roformer.git",  # optional
+    # "stable-ts>=2.18",  # for Whisper forced alignment
+    # "openai-whisper>=20240930",  # for transcription
+    "onnxruntime>=1.20",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.3",
+    "ruff>=0.7",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["compas_ml"]
