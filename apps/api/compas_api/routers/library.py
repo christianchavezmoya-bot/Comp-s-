@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
+from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
 from compas_api.config import get_settings
@@ -160,3 +161,38 @@ async def delete_song(song_id: str) -> None:
                 log.warning("Failed to delete %s: %s", row.source_path, e)
         s.delete(row)
         s.commit()
+
+
+@router.get("/songs/{song_id}/audio")
+async def stream_audio(song_id: str) -> FileResponse:
+    """Stream the original uploaded audio file. Supports HTTP Range for seeking."""
+    with get_session() as s:
+        row = s.get(Song, song_id)
+        if not row:
+            raise HTTPException(404, "Song not found")
+        if not row.source_path or not Path(row.source_path).exists():
+            raise HTTPException(404, "Audio file not found on disk")
+        path = Path(row.source_path)
+    # Pick a media type that matches the file extension
+    ext = path.suffix.lower()
+    media_types = {
+        ".flac": "audio/flac",
+        ".wav": "audio/wav",
+        ".mp3": "audio/mpeg",
+        ".m4a": "audio/mp4",
+        ".ogg": "audio/ogg",
+    }
+    media_type = media_types.get(ext, "application/octet-stream")
+    return FileResponse(path, media_type=media_type, filename=path.name)
+
+
+@router.get("/songs/{song_id}/stems/{stem_name}")
+async def stream_stem(song_id: str, stem_name: str) -> FileResponse:
+    """Stream a separated stem (FLAC)."""
+    settings = get_settings()
+    stem_path = (
+        Path(settings.storage_dir) / "analysis" / song_id / "stems" / f"{stem_name}.flac"
+    )
+    if not stem_path.exists():
+        raise HTTPException(404, f"Stem '{stem_name}' not found")
+    return FileResponse(stem_path, media_type="audio/flac", filename=stem_path.name)

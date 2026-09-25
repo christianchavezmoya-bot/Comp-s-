@@ -1,32 +1,26 @@
 """Compás ML package — model runners for stem separation, beat detection, and lyrics.
 
-In v0.1 this is a thin scaffold. Real implementations land in Phase 1.
+Public API:
+  - compas_ml.pipeline.run_pipeline: run the full analysis on one audio file
+  - compas_ml.separation.separate: just the stem separation stage
+  - compas_ml.beats.detect_beats: just the beat detection stage
+  - compas_ml.sections.detect_sections: just the section detection stage
+  - compas_ml.clave.detect_clave: just the clave detection stage (salsa)
+  - compas_ml.onsets.detect_onsets: per-stem onset detection
 """
 from __future__ import annotations
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"
 
 
 def get_pipeline_stages() -> list[str]:
-    """Returns the ordered list of pipeline stages.
-
-    Each stage has a corresponding module in this package:
-      1. preflight       - format check, loudness normalization
-      2. separation      - Demucs v4 htdemucs_ft + Mel-Band-Roformer ensemble
-      3. beats           - Beat-Transformer
-      4. eight_count     - bachata 8-count validator
-      5. structure       - SA3 + custom rules
-      6. vocals          - Whisper large-v3 + pyin pitch
-      7. musicality      - onset density, energy, flux, drops
-      8. validate        - SDR / WER / F1 sanity check
-    """
     return [
         "preflight",
         "separation",
         "beats",
         "eight_count",
         "structure",
-        "vocals",
+        "clave",
         "musicality",
         "validate",
     ]

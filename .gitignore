@@ -17,10 +17,13 @@ __pycache__/
 .ruff_cache/
 .mypy_cache/
 
-# local app storage (audio + DBs)
+# local app storage (audio + DBs + analysis)
+storage/
 apps/api/storage/
 apps/api/*.db
 apps/api/*.db-journal
+*.db
+*.db-journal
 
 # ML model weights
 models/
@@ -28,6 +31,7 @@ models/
 *.pt
 *.pth
 *.bin
+.cache/
 
 # uploaded songs (we keep originals out of git)
 golden/sources/

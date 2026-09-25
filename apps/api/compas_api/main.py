@@ -9,7 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from compas_api.config import get_settings
 from compas_api.db import init_db
-from compas_api.routers import library, analysis, health
+from compas_api.routers import library, analysis, health, auth
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
 log = logging.getLogger("compas.api")
@@ -18,7 +18,7 @@ log = logging.getLogger("compas.api")
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     settings = get_settings()
-    log.info("Compás API v0.1 starting — db=%s storage=%s", settings.db_path, settings.storage_dir)
+    log.info("Compás API v0.2 starting — db=%s storage=%s", settings.db_path, settings.storage_dir)
     init_db()
     yield
     log.info("Compás API shutting down")
@@ -28,7 +28,7 @@ def create_app() -> FastAPI:
     settings = get_settings()
     app = FastAPI(
         title="Compás API",
-        version="0.1.0",
+        version="0.2.0",
         description="Open, free musical companion for salsa & bachata dancers. Local-first.",
         lifespan=lifespan,
     )
@@ -40,6 +40,7 @@ def create_app() -> FastAPI:
         allow_headers=["*"],
     )
     app.include_router(health.router)
+    app.include_router(auth.router)
     app.include_router(library.router)
     app.include_router(analysis.router)
     return app

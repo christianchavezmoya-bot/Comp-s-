@@ -1,202 +1,197 @@
 # Compás
 
 > Open, free musical companion for **salsa & bachata** dancers (and musicians).
-> Apache 2.0. No paywalls. No business model. Built on a local PC first; cloud later.
+> Apache 2.0. No paywalls. No business model. Real ML analysis, runs on your PC.
 
 ---
 
-## What is this?
+## What it does
 
-Compás is a spiritual successor to **Dentro** — a web app that splits a salsa or bachata song into its instruments, maps the onsets to the 8-count, detects sections (intro / verso / coro / mambo / majae / soneo / breakdown / …), shows you which instrument cues which dance move, and overlays translated lyrics. The full vision is in [`COMPAS_PLAN.md`](./COMPAS_PLAN.md). The locked instrument and section taxonomy is in [`COMPAS_PLAN.md` §1](./COMPAS_PLAN.md#1-locked-genre-specification--instruments-sections-dance-mapping).
+Compás takes a **bachata or salsa song** and tells you exactly what's happening, beat by beat, instrument by instrument:
 
-**Status**: v0.1 prototype. Working SvelteKit + Pixi.js gem-grid with mock data. Real ML pipeline lands in Phase 1.
+- **Splits the song into stems** (vocals, requinto/segunda, bass, bongó, güira, drums, etc.) using **Demucs v4** (htdemucs, the SOTA open-source separator)
+- **Detects BPM and the 8-count** with `librosa` (or `essentia` if you prefer)
+- **Detects song sections** (intro / verso / coro / mambo / majae / soneo / breakdown / …) using a rule-based classifier on per-stem features
+- **Detects clave direction** (2-3 vs 3-2) for salsa via drum-onset correlation
+- **Maps every instrument onset to a gem** on a time-aligned grid, with **pitch-aware vertical positioning** — you literally *see* the requinto melody
+- **Renders 4 musicality curves** (energy, onset density, bass RMS, vocal activity) under the grid so you can *feel* when the music opens up vs when it's telling a story
+- **(Optional)** Transcribes lyrics with **Whisper** + per-word timestamps
+
+The visualization is a single-page web app that streams the original audio, plays the song, lets you **loop A-B regions**, **change speed without changing pitch**, and **mute/solo individual stems**.
 
 ---
 
-## Repo layout (monorepo)
+## Quick start (your PC)
+
+### Prerequisites
+- **Node.js 20+**
+- **pnpm 9+** (`npm install -g pnpm`)
+- **Python 3.11+**
+- **uv** (Python package manager — `pip install uv` or `brew install uv`)
+- **ffmpeg + ffprobe** (`brew install ffmpeg` / `apt install ffmpeg`)
+
+### One-time install
+```bash
+git clone https://github.com/christianchavezmoya-bot/Comp-s-.git compas
+cd compas
+pnpm install
+
+# Python deps (torch, demucs, librosa, fastapi, sqlalchemy, etc.)
+uv venv .venv --python 3.11
+source .venv/bin/activate
+uv pip install "demucs>=4.0.1" "librosa>=0.10" "soundfile" "numpy<2" "scipy<1.14" "torch==2.1.0" "torchaudio==2.1.0" \
+                 "fastapi" "uvicorn[standard]" "sqlalchemy" "aiosqlite" "pydantic[email]" "email-validator" \
+                 "python-multipart" "pydantic-settings" "httpx" "essentia" "openai-whisper"
+```
+
+### Run dev servers (3 terminals)
+```bash
+# Terminal 1 — API on http://localhost:8000
+cd compas/apps/api
+../../.venv/bin/uvicorn compas_api.main:app --reload --port 8000
+
+# Terminal 2 — Web on http://localhost:5173
+cd compas
+pnpm --filter @compas/web run dev
+
+# Terminal 3 (optional) — Worker (no-op in v0.2)
+cd compas/apps/worker
+../../.venv/bin/python -m compas_worker.main
+```
+
+### Use it
+1. Open **http://localhost:5173**
+2. Click **+ Upload** in the sidebar; pick a `.flac`/`.wav`/`.mp3` bachata or salsa file
+3. Click **▶ Analyze** — first analysis takes ~3 min for a 3-min song on CPU
+4. Once done, the **gem grid** appears: diamonds for every instrument onset, colored by stem
+5. Use the transport controls: **play/pause**, **seek bar**, **loop A-B**, **speed 0.5×–1.5×** (with pitch preserved)
+6. Click any **section chip** to jump to it
+7. Use the **stem mixer** below the grid to mute/solo individual instruments
+
+---
+
+## What works (v0.2 — production-shape)
+
+| Layer | Status | Notes |
+|---|---|---|
+| **Stem separation (Demucs v4 htdemucs)** | ✅ | 4 stems: vocals, drums, bass, other. CPU: ~3× real-time |
+| **BPM / beats / downbeats (librosa)** | ✅ | With half/double-time correction. Optional `essentia` backend |
+| **8-count validation** | ✅ | Scores phase candidates against requinto onsets |
+| **Section detection** | ✅ | 10-section taxonomy for bachata, 8+4 for salsa. Rule-based |
+| **Clave direction (salsa)** | ✅ | 2-3 vs 3-2 with confidence + mid-song switches |
+| **Onset detection per stem** | ✅ | librosa onset + spectral centroid → pitch MIDI |
+| **Gem grid visualization (Pixi.js v8)** | ✅ | 60fps, pitch-aware gems, section ribbons, musicality curves, loop markers, click-to-seek |
+| **Audio streaming (HTTP range)** | ✅ | Original + per-stem FLAC |
+| **Lyrics (Whisper)** | ✅ | Off by default (slow). Set `COMPAS_TRANSCRIBE=true` to enable |
+| **Library CRUD** | ✅ | List, get, upload, delete |
+| **Auth + roles** | ✅ | Email/password, PBKDF2 hashing, signed session cookies |
+| **User + Admin upload** | ✅ | Both can upload, both can analyze |
+| **Versioned analyses** | ✅ | Every model upgrade creates a new immutable version |
+| **SQLite (dev) / Postgres-portable schema** | ✅ | SQLAlchemy, same SQL works on either |
+| **Local PWA-friendly web app** | ✅ | SvelteKit 2 + Svelte 5 + Vite 5 + Tailwind-ready |
+
+## What doesn't (yet)
+
+- **GPU acceleration** — CPU only for now. Set `device=cuda` in `compas_ml/config.py` to use a GPU
+- **htdemucs_ft** (finer separator) — opt-in via `COMPAS_USE_HTDEMUCS_FT=true` env. ~5× slower
+- **WhisperX word-level timestamps** — we use `openai-whisper` segment-level timestamps. WhisperX integration is the next upgrade
+- **Salsa per-stem finer split** (piano, congas, timbales, cowbell separated) — Demucs gives 4 stems, finer split via classifier is in design
+- **Lyrics translation** (NLLB-200) — pipeline stub is there, not yet wired
+- **Pattern coach** (move suggestions) — UI not yet built
+- **Mobile PWA optimizations** (offline cache, haptics) — basic only
+- **Production deployment** — local-only; Cloudflare R2 / Workers config is in the plan but not deployed
+- **Golden test set** — sample annotation only, no full 200-song set yet
+
+---
+
+## Repo layout
 
 ```
 compas/
 ├── apps/
-│   ├── web/                SvelteKit 2 + Svelte 5 + Pixi.js v8 + Tone.js
-│   ├── api/                FastAPI + SQLite (local-first, Postgres-portable)
-│   └── worker/             Dramatiq ML worker (stub for v0.1)
+│   ├── web/                    SvelteKit 2 + Pixi.js v8 + Tone.js
+│   │   ├── src/lib/
+│   │   │   ├── GemGrid.svelte  the visualization
+│   │   │   └── api.ts          the API client
+│   │   └── src/routes/+page.svelte
+│   ├── api/                    FastAPI + SQLite
+│   │   └── compas_api/
+│   │       ├── main.py
+│   │       ├── config.py
+│   │       ├── db.py
+│   │       └── routers/
+│   │           ├── auth.py
+│   │           ├── library.py
+│   │           ├── analysis.py
+│   │           └── health.py
+│   └── worker/                 Dramatiq stub (Phase 4+)
 ├── packages/
-│   ├── shared-types/       TypeScript types shared by web + future mobile
-│   └── ml/                 Python ML package: Demucs, Roformer, Beat-Transformer, Whisper
-├── golden/                 The annotation test set (200 songs, hand-labeled)
-│   ├── songs/              <uuid>.flac + <uuid>.json pairs
-│   ├── sources/            drop new audio here, then run intake.py
-│   └── scripts/            intake.py, validate.py, stats.py
-├── infra/                  Deployment configs (cloud later)
-├── docs/                   Additional docs
-├── COMPAS_PLAN.md          The full project plan
-├── ANNOTATION_GUIDELINES.md  How to hand-annotate the golden set
-└── README.md               You are here
+│   ├── shared-types/           TypeScript types (used by web + future mobile)
+│   └── ml/                     Python ML pipeline
+│       └── compas_ml/
+│           ├── config.py
+│           ├── io_utils.py
+│           ├── separation.py   Demucs wrapper
+│           ├── beats.py        librosa + essentia
+│           ├── onsets.py
+│           ├── sections.py     rule-based
+│           ├── clave.py        salsa 2-3 vs 3-2
+│           ├── lyrics.py       Whisper
+│           └── pipeline.py     orchestrator
+├── golden/                     annotation tooling
+│   ├── songs/
+│   ├── sources/
+│   └── scripts/{intake,validate,stats}.py
+├── storage/                    runtime data (gitignored)
+│   ├── compas.db
+│   ├── originals/<song_id>/source.flac
+│   └── analysis/<song_id>/{stems/, analysis.json}
+├── COMPAS_PLAN.md              full plan + locked decisions
+├── LICENSE                      Apache 2.0
+└── README.md                   you are here
 ```
 
 ---
 
-## Local setup (your PC)
+## API quick reference
 
-### 0. Prerequisites
-- **Node.js 20+** (tested with 22) — https://nodejs.org
-- **pnpm 9+** (we pin 12.6) — `npm install -g pnpm` (or `corepack enable && corepack prepare pnpm@12.6.0 --activate`)
-- **Python 3.11+** — https://python.org
-- **uv** (Python package manager) — `pip install uv` or `brew install uv`
-- **ffmpeg + ffprobe** (for audio duration probing) — `brew install ffmpeg` (macOS) or `apt install ffmpeg` (Linux)
-- *(optional)* **Docker** — only needed if you want Postgres instead of SQLite later
-
-### 1. Clone & install
-```bash
-git clone <your-fork-url> compas
-cd compas
-pnpm install                          # installs JS deps across the monorepo
-cd apps/api && uv sync                # installs Python deps for the API
-cd ../worker && uv sync               # installs Python deps for the worker
-cd ../..
-```
-
-### 2. Run dev servers (3 terminals, or use the runner)
-
-**Terminal 1 — API** (port 8000):
-```bash
-cd compas/apps/api
-uv run uvicorn compas_api.main:app --reload --port 8000
-```
-
-**Terminal 2 — Web** (port 5173):
-```bash
-cd compas
-pnpm dev:web
-```
-
-**Terminal 3 — Worker** (no-op in v0.1; needed Phase 4+):
-```bash
-cd compas/apps/worker
-uv run python -m compas_worker.main
-```
-
-**Or run them all in one go** (if you have `concurrently`):
-```bash
-cd compas
-pnpm dev   # uses the workspace dev script
-```
-
-### 3. Open the app
-Visit **http://localhost:5173** — you'll see the gem-grid prototype running with mock data.
-
-### 4. Try the API
-```bash
-curl http://localhost:8000/health
-# → {"status":"ok","service":"compas-api","version":"0.1.0"}
-
-# Upload a song
-curl -X POST http://localhost:8000/api/library/songs \
-  -F "title=Obsesión" \
-  -F "artist=Aventura" \
-  -F "genre=bachata" \
-  -F "audio=@/path/to/song.flac"
-
-# List songs
-curl http://localhost:8000/api/library/songs
-```
-
-API docs at **http://localhost:8000/docs** (auto-generated Swagger UI).
-
----
-
-## Annotation workflow (the golden test set)
-
-See [`ANNOTATION_GUIDELINES.md`](./ANNOTATION_GUIDELINES.md) for the full guide.
-
-TL;DR:
-```bash
-# 1. Drop a song into sources/
-cp /path/to/song.flac golden/sources/
-
-# 2. Run intake to generate UUID + skeleton
-python golden/scripts/intake.py golden/sources/song.flac
-
-# 3. Open the generated .json in your editor and fill in:
-#    - metadata (title, artist, genre, language)
-#    - global.bpm (use BPM Tap or Mixed In Key as starting point)
-#    - sections (use Sonic Visualiser)
-#    - lyrics (transcribe what you hear)
-#    - clave_segments (salsa only)
-#    - hits, stems_present, stems_quality, etc.
-
-# 4. Validate before committing
-python golden/scripts/validate.py golden/songs/<uuid>.json
-
-# 5. See coverage progress
-python golden/scripts/stats.py
-```
-
-**Start with 5 pilot songs** (per §6 of the guidelines):
-- Obsesión — Aventura (bachata moderna)
-- Propuesta Indecente — Romeo Santos (bachata moderna)
-- Darte un Beso — Prince Royce (bachata moderna)
-- Vivir Mi Vida — Marc Anthony (salsa)
-- Idilio — Willie Colón / Héctor Lavoe (salsa dura)
-
----
-
-## Development phases
-
-From the plan (§14):
-
-| Phase | Weeks | What |
+| Method | Path | Purpose |
 |---|---|---|
-| **0** | 0–1 | Repo + golden set scaffold + this README |
-| **1** | 1–4 | MVP: SvelteKit + FastAPI + Demucs stem separation + basic gem grid + BPM + simple lyrics |
-| **2** | 5–7 | 7 (bachata) / 9–10 (salsa) stems, 8-count validator, clave detector, musicality curves, pattern coach |
-| **3** | 8–9 | Practice tools, stem mixer, exports, shareable links |
-| **4** | 10 | Roles, moderation, admin dashboard |
-| **5** | 11–12 | Polish, a11y, performance, open-source release |
-| **6** | 4–6 mo | Salsa-specific deep features, mobile wrappers, community pattern lexicon |
+| `GET` | `/health` | health check |
+| `POST` | `/api/auth/register` | create user (role: `user` or `admin`) |
+| `POST` | `/api/auth/login` | session cookie |
+| `POST` | `/api/auth/logout` | clear cookie |
+| `GET` | `/api/auth/me` | current user (or null) |
+| `GET` | `/api/library/songs?genre=bachata` | list songs |
+| `POST` | `/api/library/songs` | upload a song (multipart: `title`, `artist`, `genre`, `audio`) |
+| `GET` | `/api/library/songs/{id}` | get one song |
+| `DELETE` | `/api/library/songs/{id}` | delete a song |
+| `GET` | `/api/library/songs/{id}/audio` | stream the original (HTTP range supported) |
+| `GET` | `/api/library/songs/{id}/stems/{stem}` | stream a stem FLAC |
+| `POST` | `/api/analysis/songs/{id}/analyze` | run the full pipeline (synchronous by default) |
+| `GET` | `/api/analysis/songs/{id}/latest` | get the latest analysis JSON |
+| `GET` | `/api/analysis/songs/{id}/status` | just the status |
+
+OpenAPI/Swagger UI: **http://localhost:8000/docs**
 
 ---
 
-## Locked decisions
+## Env vars
 
-| | |
-|---|---|
-| Name | **Compás** |
-| Genre scope | **Bachata + Salsa** (no merengue v1) |
-| Framework | **SvelteKit 2 + Svelte 5** |
-| Mobile | **Pure PWA** (no TWA / Capacitor v1) |
-| License | **Apache 2.0** |
-| Hosting (now) | **Local PC only** — SQLite + filesystem |
-| Hosting (later) | Cloudflare R2 + Workers |
-
----
-
-## Tech stack (locked)
-
-| Layer | Tech |
-|---|---|
-| Frontend | SvelteKit 2 · Svelte 5 · Vite 5 · Tailwind v4 |
-| Visualization | Pixi.js v8 (WebGL2) · Tone.js (audio scheduling) |
-| Audio (client) | Web Audio API · ONNX Runtime Web (preview stems) |
-| Backend | FastAPI · SQLAlchemy · better-sqlite3 (dev) → Postgres (prod) |
-| ML | Demucs v4 htdemucs_ft · Mel-Band-Roformer · Beat-Transformer · Whisper large-v3 · WhisperX · NLLB-200 · librosa · essentia |
-| Worker | Dramatiq + Redis (Phase 4+) |
-| Storage | Local FS (dev) → Cloudflare R2 (prod) |
-| Search | SQLite FTS5 (dev) → Meilisearch (prod) |
-| Tests | pytest · Playwright (web) · vitest (components) |
-
----
-
-## Contributing
-
-1. Read [`COMPAS_PLAN.md`](./COMPAS_PLAN.md) — the architecture and decisions are all there.
-2. Read [`ANNOTATION_GUIDELINES.md`](./ANNOTATION_GUIDELINES.md) — if annotating.
-3. Open an issue before big changes so we can discuss.
-4. PRs welcome. Apache 2.0.
+| Var | Default | What it does |
+|---|---|---|
+| `COMPAS_RUN_ML_INLINE` | `true` | If true, `/analyze` blocks until done. If false, queues in background |
+| `COMPAS_USE_HTDEMUCS_FT` | `false` | Use the higher-quality htdemucs_ft separator (~5× slower) |
+| `COMPAS_TRANSCRIBE` | `false` | Run Whisper on the vocal stem (adds significant time) |
+| `COMPAS_MAX_UPLOAD_MB` | `100` | Max upload size in MB |
+| `COMPAS_DB_PATH` | `<project>/storage/compas.db` | SQLite location |
+| `COMPAS_STORAGE_DIR` | `<project>/storage` | Audio + stems location |
+| `COMPAS_SESSION_SECRET` | `dev-secret-change-me` | Session signing key. **Set this in production** |
+| `TORCH_HOME` | `~/.cache/torch` | PyTorch model cache |
+| `DEMUCS_CACHE` | `~/.cache/demucs` | Demucs model cache |
 
 ---
 
 ## License
 
-Apache License 2.0. See [`LICENSE`](./LICENSE) (TBD — to be added before public release).
+Apache 2.0. See [`LICENSE`](./LICENSE).

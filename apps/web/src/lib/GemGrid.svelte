@@ -12,9 +12,12 @@
 	interface Props {
 		data: GemGridData;
 		playheadSec?: number;
+		loopA?: number | null;
+		loopB?: number | null;
+		onSeek?: (sec: number) => void;
 	}
 
-	let { data, playheadSec = 0 }: Props = $props();
+	let { data, playheadSec = 0, loopA = null, loopB = null, onSeek }: Props = $props();
 
 	let containerEl: HTMLDivElement;
 	let app: PIXI.Application | null = null;
@@ -291,6 +294,46 @@
 		gemLayer.addChild(g);
 	}
 
+	function drawLoop() {
+		if (!gemLayer) return;
+		// Remove old loop markers
+		const toRemove: any[] = [];
+		(gemLayer.children as any[]).forEach((c) => {
+			if (c._isLoopMarker) toRemove.push(c);
+		});
+		toRemove.forEach((c) => gemLayer!.removeChild(c));
+		if (loopA === null && loopB === null) return;
+		const g = new PIXI.Graphics();
+		;(g as any)._isLoopMarker = true;
+		if (loopA !== null) {
+			const x = timeToX(loopA);
+			g.lineStyle(2, 0xfbbf24, 0.9);
+			g.moveTo(x, HEADER_HEIGHT);
+			g.lineTo(x, HEADER_HEIGHT + layout.laneCount * (LANE_HEIGHT + LANE_GAP) + MUSICALITY_HEIGHT);
+			g.stroke();
+		}
+		if (loopB !== null) {
+			const x = timeToX(loopB);
+			g.lineStyle(2, 0xfbbf24, 0.9);
+			g.moveTo(x, HEADER_HEIGHT);
+			g.lineTo(x, HEADER_HEIGHT + layout.laneCount * (LANE_HEIGHT + LANE_GAP) + MUSICALITY_HEIGHT);
+			g.stroke();
+		}
+		if (loopA !== null && loopB !== null && loopB > loopA) {
+			const x1 = timeToX(loopA);
+			const x2 = timeToX(loopB);
+			g.beginFill(0xfbbf24, 0.07);
+			g.drawRect(
+				x1,
+				HEADER_HEIGHT,
+				x2 - x1,
+				layout.laneCount * (LANE_HEIGHT + LANE_GAP) + MUSICALITY_HEIGHT
+			);
+			g.endFill();
+		}
+		gemLayer.addChild(g);
+	}
+
 	function redraw() {
 		if (!app) return;
 		drawLaneBackgrounds();
@@ -300,6 +343,7 @@
 		drawMusicalityStrip();
 		drawLaneLabels();
 		drawPlayhead();
+		drawLoop();
 	}
 
 	onMount(async () => {
@@ -323,6 +367,16 @@
 		app.stage.addChild((app as any)._labelLayer);
 		app.stage.addChild(playheadLayer);
 
+		// click-to-seek on the canvas
+		app.canvas.addEventListener('click', (ev) => {
+			if (!onSeek) return;
+			const rect = (ev.target as HTMLElement).getBoundingClientRect();
+			const scrollLeft = containerEl.scrollLeft;
+			const x = ev.clientX - rect.left + scrollLeft;
+			const t = x / layout.timePxPerSec;
+			onSeek(Math.max(0, Math.min(data.duration_sec, t)));
+		});
+
 		redraw();
 
 		resizeObs = new ResizeObserver(() => {
@@ -340,6 +394,13 @@
 		// re-draw on playhead change
 		void playheadSec;
 		drawPlayhead();
+	});
+
+	$effect(() => {
+		// re-draw on loop change
+		void loopA;
+		void loopB;
+		drawLoop();
 	});
 </script>
 
