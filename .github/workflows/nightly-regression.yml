@@ -1,0 +1,14 @@
+name: Nightly regression
+
+on:
+  schedule:
+    # Every day at 06:00 UTC
+    - cron: '0 6 * * *'
+  workflow_dispatch:  # Manual trigger
+
+jobs:
+  regression:
+    uses: ./.github/workflows/ci.yml
+    with:
+      run_regression: true
+    secrets: inherit

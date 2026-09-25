@@ -195,8 +195,10 @@
 		if (!audio) return;
 		if (audio.paused) {
 			audio.play();
+			(window as any).compasHaptic?.(10);
 		} else {
 			audio.pause();
+			(window as any).compasHaptic?.(5);
 		}
 	}
 
@@ -224,6 +226,7 @@
 		if (!audio) return;
 		audio.currentTime = Math.max(0, Math.min(duration, t));
 		playhead = audio.currentTime;
+		(window as any).compasHaptic?.(8);
 	}
 
 	function setLoopA() {
@@ -253,6 +256,45 @@
 	let visibleGems = $derived(analysis?.gems ?? []);
 
 	let bpm = $derived(analysis?.global.bpm ?? null);
+
+	// Current section (whichever section contains the playhead)
+	let currentSection = $derived(
+		visibleSections.find((s) => playhead >= s.start_sec && playhead < s.end_sec) ?? null
+	);
+
+	// Pattern coach: section → move suggestion (locked §4.6)
+	const COACH_BACHATA: Record<string, { move: string; detail: string; difficulty: 'beginner' | 'intermediate' | 'advanced' }> = {
+		intro: { move: 'Get into position', detail: 'Connect with partner, find your frame, breathe.', difficulty: 'beginner' },
+		verso: { move: 'Basic step with body movement', detail: 'Hip check on counts 4 and 8, weight shifts with the melody.', difficulty: 'beginner' },
+		pre_coro: { move: 'Anticipate the turn', detail: 'Slight weight shift, eye contact, prepare for the coro.', difficulty: 'beginner' },
+		coro: { move: 'Same footwork, more hip', detail: 'More pronounced hip motion. Stay in close position.', difficulty: 'beginner' },
+		mambo: { move: 'Cross-body lead with 1 turn', detail: 'Vocal break + bass hit = your moment. Use it.', difficulty: 'intermediate' },
+		majae: { move: 'Open-position footwork', detail: 'Vocal drops, percussion leads. Shine in shadow position.', difficulty: 'intermediate' },
+		soneo: { move: 'Shines and freestyle', detail: 'Singer is improvising — the music is open. Separate or add partner tricks.', difficulty: 'advanced' },
+		puente: { move: 'Dips and body isolations', detail: 'Chord change = emotional shift. Romantic moment.', difficulty: 'intermediate' },
+		breakdown: { move: 'Stop, dip, body roll', detail: 'Instrumentation drops. Dramatic pause = dramatic move.', difficulty: 'advanced' },
+		outro: { move: 'Wind down, final pose', detail: 'Match the energy ramp-down. End with intention.', difficulty: 'beginner' }
+	};
+
+	const COACH_SALSA: Record<string, { move: string; detail: string; difficulty: 'beginner' | 'intermediate' | 'advanced' }> = {
+		intro: { move: 'Find the 1 (or 2)', detail: 'On1 = break on count 1. On2 = break on count 2. Locate your foot.', difficulty: 'beginner' },
+		verso: { move: 'Partner work, basic step', detail: 'Stay connected, listen for the coro. Don\'t pre-plan turns.', difficulty: 'beginner' },
+		coro_pregon: { move: 'Anticipate the coro', detail: 'Call to chorus — get ready to sing along and start the footwork pattern.', difficulty: 'beginner' },
+		coro: { move: 'Basic step, sing along', detail: 'Same footwork, more groove. Sing if you know it.', difficulty: 'beginner' },
+		montuno: { move: 'Continuous partner work + turn patterns', detail: 'Piano montuno + bass tumbao = the main 8-count. All your patterns live here.', difficulty: 'intermediate' },
+		mambo_sub: { move: 'Shines! Partner separates', detail: 'Horns drive the mambo. Both dancers shine — solo footwork.', difficulty: 'intermediate' },
+		diablo_sub: { move: 'Fast footwork shines', detail: 'Highest energy. Complex shines. Show your best.', difficulty: 'advanced' },
+		mona_sub: { move: 'Climax — biggest move', detail: 'Peak of the song. Your signature trick, dip, or lift.', difficulty: 'advanced' },
+		especial_sub: { move: 'Special arrangement, big trick', detail: 'Key change or new vamp. Time your biggest move.', difficulty: 'advanced' },
+		soneo: { move: 'Shines, freestyle, partner tricks', detail: 'Singer improvising over the montuno. Open for anything.', difficulty: 'intermediate' },
+		coda: { move: 'Big finish, dramatic pose', detail: 'Final vamp, often with a hit. End with confidence.', difficulty: 'beginner' }
+	};
+
+	let coachSuggestion = $derived.by(() => {
+		if (!currentSection || !selectedSong) return null;
+		const table = selectedSong.genre === 'bachata' ? COACH_BACHATA : COACH_SALSA;
+		return table[currentSection.type] ?? null;
+	});
 
 	// Format helpers
 	function fmtTime(t: number) {
@@ -463,6 +505,21 @@
 								<span class="muted"> {fmtTime(sec.start_sec)}</span>
 							</button>
 						{/each}
+					</div>
+				{/if}
+
+				<!-- Pattern Coach (locked §4.6) -->
+				{#if coachSuggestion && currentSection}
+					<div class="coach">
+						<div class="coach-head">
+							<span class="coach-label">🎯 Pattern Coach</span>
+							<span class="coach-section" style="color: {SECTION_COLORS[currentSection.type] ?? '#888'}">
+								{currentSection.type.replace('_', ' ').toUpperCase()}
+							</span>
+							<span class="coach-diff coach-diff-{coachSuggestion.difficulty}">{coachSuggestion.difficulty}</span>
+						</div>
+						<div class="coach-move">{coachSuggestion.move}</div>
+						<div class="coach-detail">{coachSuggestion.detail}</div>
 					</div>
 				{/if}
 			{/if}
@@ -808,4 +865,50 @@
 		text-align: center;
 	}
 	.placeholder-card p { margin: 6px 0; }
+	.coach {
+		margin-top: 12px;
+		padding: 14px 18px;
+		background: linear-gradient(135deg, #1a1a2e 0%, #0f0f1a 100%);
+		border: 1px solid #2a2a4a;
+		border-radius: 6px;
+		border-left: 3px solid var(--accent);
+	}
+	.coach-head {
+		display: flex;
+		gap: 12px;
+		align-items: center;
+		margin-bottom: 6px;
+	}
+	.coach-label {
+		font-size: 11px;
+		text-transform: uppercase;
+		letter-spacing: 0.05em;
+		color: #aaa;
+	}
+	.coach-section {
+		font-size: 11px;
+		font-weight: 600;
+		letter-spacing: 0.05em;
+	}
+	.coach-diff {
+		font-size: 10px;
+		padding: 1px 6px;
+		border-radius: 3px;
+		text-transform: uppercase;
+		margin-left: auto;
+	}
+	.coach-diff-beginner { background: #1e3a1e; color: #86efac; }
+	.coach-diff-intermediate { background: #3a3a1e; color: #fde047; }
+	.coach-diff-advanced { background: #3a1e1e; color: #fca5a5; }
+	.coach-move {
+		font-size: 16px;
+		font-weight: 600;
+		color: #fff;
+		margin-bottom: 4px;
+	}
+	.coach-detail {
+		font-size: 13px;
+		color: #aaa;
+		line-height: 1.4;
+	}
 </style>

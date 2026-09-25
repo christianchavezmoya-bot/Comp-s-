@@ -126,6 +126,8 @@ def run_pipeline(
                 sep.sr,
                 model_name=config.whisper_model,
                 device=config.whisper_device,
+                word_level=config.word_level_timestamps,
+                translate_to=config.translate_to if config.translate_to else None,
             )
             timings["lyrics"] = time.time() - t
             log.info("lyrics: %.1fs, %d lines, %s", timings["lyrics"], len(lyrics_result.lines), lyrics_result.language)
@@ -155,6 +157,37 @@ def run_pipeline(
 
     # 8. Build gems from stem onsets
     log.info("=== Gems ===")
+
+    # 7.5. Genre-specific stem split
+    log.info("=== Stem split (%s) ===", genre)
+    from compas_ml.stemsplit import split_bachata_stems, split_salsa_stems
+
+    if genre == "bachata":
+        split_stems = split_bachata_stems(
+            sep.stems.get("vocals"),
+            sep.stems.get("drums"),
+            sep.stems.get("bass"),
+            sep.stems.get("other"),
+            sep.sr,
+        )
+    else:
+        split_obj = split_salsa_stems(
+            sep.stems.get("vocals"),
+            sep.stems.get("drums"),
+            sep.stems.get("bass"),
+            sep.stems.get("other"),
+            sep.sr,
+        )
+        split_stems = {k: v for k, v in split_obj.__dict__.items() if v is not None}
+    log.info("split: %s", list(split_stems.keys()))
+
+    # Save the split stems too
+    split_dir = out_dir / "stems_split"
+    split_dir.mkdir(parents=True, exist_ok=True)
+    for name, audio in split_stems.items():
+        from compas_ml.io_utils import save_audio
+        save_audio(split_dir / f"{name}.{config.stems_format}", audio, sep.sr, format=config.stems_format)
+
     gems = _build_gems(sep, mix, sr, duration)
 
     # 9. Validation / metadata
@@ -208,7 +241,7 @@ def run_pipeline(
             }
             for s in sections
         ],
-        "stems_present": _stems_present(sep),
+        "stems_present": _stems_present_split(genre, split_stems),
         "stems_quality": {k: {"sdr_db_estimate": v, "bleed": _bleed_label(v), "notes": ""} for k, v in sep.sdr_estimates.items()},
         "lyrics": (
             {
@@ -218,9 +251,11 @@ def run_pipeline(
                         "start_sec": ln.start_sec,
                         "end_sec": ln.end_sec,
                         "text": ln.text,
-                        "translation": None,
+                        "translation": ln.translation,
                         "phonetic_ipa": None,
                         "vocal_type": ln.vocal_type,
+                        "words": ln.words,
+                        "confidence": ln.confidence,
                     }
                     for ln in lyrics_result.lines
                 ],
@@ -320,6 +355,27 @@ def _build_gems(sep, mix, sr, duration) -> list[dict]:
             )
     gems.sort(key=lambda g: g["time_sec"])
     return gems
+
+
+def _stems_present_split(genre: str, split: dict) -> dict[str, bool]:
+    """Reflect what the per-genre stem split actually produced."""
+    has = {k: False for k in [
+        "vocals_lead", "vocals_back", "requinto", "segunda", "bass", "bongo",
+        "guira", "tambora", "clave", "palmas", "synth", "horns", "piano",
+        "congas", "timbales", "cowbell", "maracas", "guiro",
+    ]}
+    for k in split.keys():
+        if k in has:
+            has[k] = True
+    # Mirror some cross-wires (cognition consistency)
+    if has.get("vocals_coro"):
+        has["vocals_back"] = True  # colloquial alias
+    if has.get("timbales"):
+        has["cowbell"] = True  # cowbell mounts on timbales
+    if has.get("maracas") or has.get("guiro"):
+        has["maracas"] = has.get("maracas", False) or has.get("guiro", False)
+        has["guiro"] = has.get("maracas", False) or has.get("guiro", False)
+    return has
 
 
 def _stems_present(sep) -> dict[str, bool]:

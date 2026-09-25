@@ -1,0 +1,32 @@
+name = "compas-api"
+main = "../apps/api/compas_api/main.py"
+compatibility_date = "2025-01-01"
+compatibility_flags = ["python_compat"]
+
+# Workers AI for fallback embeddings (e.g. genre classification)
+# [ai]
+# binding = "AI"
+
+# R2 bucket for audio + stems (zero egress)
+# [[r2_buckets]]
+# binding = "STORAGE"
+# bucket_name = "compas-storage"
+# preview_bucket_name = "compas-storage-preview"
+
+# Hyperdrive for Postgres (when we switch off SQLite)
+# [[hyperdrive]]
+# binding = "HYPERDRIVE"
+# id = "your-hyperdrive-id"
+
+[vars]
+ENVIRONMENT = "production"
+COMPAS_RUN_ML_INLINE = "false"  # off on Workers; do ML in a separate GPU worker
+COMPAS_TRANSCRIBE = "false"      # off on Workers; do in GPU worker
+COMPAS_USE_HTDEMUCS_FT = "false"
+COMPAS_SESSION_SECRET = "REPLACE_ME_BEFORE_DEPLOY"
+
+# [[secrets]]
+# COMPAS_SESSION_SECRET
+
+[observability]
+enabled = true

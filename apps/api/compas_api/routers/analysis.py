@@ -45,9 +45,12 @@ def _run_pipeline_task(song_id: str) -> None:
 
         config = PipelineConfig(
             separator="htdemucs" if not settings.use_htdemucs_ft else "htdemucs_ft",
-            separator_shifts=0,
+            separator_device=None if settings.device == "auto" else settings.device,
+            separator_shifts=settings.shifts,
             transcribe=settings.transcribe,
             whisper_model="base",
+            translate_to=settings.translate_to,
+            word_level_timestamps=settings.word_timestamps,
         )
 
         analysis = run_pipeline(

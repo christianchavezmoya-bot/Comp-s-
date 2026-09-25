@@ -46,6 +46,18 @@ class Settings(BaseSettings):
     # Transcribe lyrics (Whisper). Adds significant time.
     transcribe: bool = False
 
+    # Word-level timestamps (requires stable-ts or whisperx installed)
+    word_timestamps: bool = True
+
+    # Translation target languages (NLLB-200). Empty list = no translation.
+    translate_to: list[str] = ["en"]
+
+    # ML device: "auto" (best available) or specific (cpu/cuda/mps)
+    device: str = "auto"
+
+    # Separator model shifts (0 = fast, 5 = quality)
+    shifts: int = 0
+
     # Max upload size
     max_upload_mb: int = 100
 

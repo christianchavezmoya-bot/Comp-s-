@@ -36,3 +36,7 @@ models/
 # uploaded songs (we keep originals out of git)
 golden/sources/
 !golden/sources/.gitkeep
+# Golden set audio (large; only commit the JSON annotations)
+golden/songs/*.wav
+golden/songs/*.flac
+golden/songs/*.mp3
