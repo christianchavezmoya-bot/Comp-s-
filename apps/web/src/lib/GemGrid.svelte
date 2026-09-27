@@ -135,9 +135,17 @@
 		// Diamond shape
 		const s = size * (0.6 + strength * 0.4);
 		g.clear();
+		if (isHit) {
+			// Glow ring
+			g.beginFill(color, 0.15);
+			g.drawCircle(x, y, s * 2.5);
+			g.endFill();
+		}
 		g.beginFill(color, isHit ? 1.0 : 0.6 + strength * 0.4);
 		if (isHit) {
-			g.lineStyle(2, 0xffffff, 0.9);
+			g.lineStyle(2, 0xffffff, 0.95);
+		} else {
+			g.lineStyle(1, 0xffffff, 0.3);
 		}
 		g.moveTo(x, y - s);
 		g.lineTo(x + s, y);
@@ -145,6 +153,12 @@
 		g.lineTo(x - s, y);
 		g.closePath();
 		g.endFill();
+		if (isHit) {
+			// White core
+			g.beginFill(0xffffff, 0.95);
+			g.drawCircle(x, y, 1.5);
+			g.endFill();
+		}
 	}
 
 	function drawSections() {
@@ -190,7 +204,9 @@
 			const x = timeToX(gem.time_sec);
 			const y = pitchToY(stemIdx, gem.pitch_midi);
 			const color = STEM_COLORS[gem.stem] ?? 0xffffff;
-			drawGem(g, x, y, 4, color, gem.strength, gem.is_hit);
+			// Highlight gems near the playhead
+			const isNearPlayhead = Math.abs(gem.time_sec - playheadSec) < 0.15;
+			drawGem(g, x, y, isNearPlayhead ? 6 : 4, color, gem.strength, gem.is_hit || isNearPlayhead);
 		}
 		gemLayer.addChild(g);
 	}
@@ -391,9 +407,11 @@
 	});
 
 	$effect(() => {
-		// re-draw on playhead change
+		// re-draw on playhead change (gems near playhead glow)
 		void playheadSec;
 		drawPlayhead();
+		// re-draw gems too (the hit-glow needs this)
+		drawGems();
 	});
 
 	$effect(() => {

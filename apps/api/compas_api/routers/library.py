@@ -188,11 +188,16 @@ async def stream_audio(song_id: str) -> FileResponse:
 
 @router.get("/songs/{song_id}/stems/{stem_name}")
 async def stream_stem(song_id: str, stem_name: str) -> FileResponse:
-    """Stream a separated stem (FLAC)."""
+    """Stream a separated stem (FLAC).
+
+    Looks in both the demucs stems dir (4 generic stems) and the per-genre
+    split stems dir (7-10 specific stems). Split stems take precedence when both exist.
+    """
     settings = get_settings()
-    stem_path = (
-        Path(settings.storage_dir) / "analysis" / song_id / "stems" / f"{stem_name}.flac"
-    )
+    base = Path(settings.storage_dir) / "analysis" / song_id
+    demucs_path = base / "stems" / f"{stem_name}.flac"
+    split_path = base / "stems_split" / f"{stem_name}.flac"
+    stem_path = split_path if split_path.exists() else demucs_path
     if not stem_path.exists():
         raise HTTPException(404, f"Stem '{stem_name}' not found")
     return FileResponse(stem_path, media_type="audio/flac", filename=stem_path.name)
